@@ -54,7 +54,7 @@ class TitleScreen {
 	
 	static update() {
 		if (Keyboard["Space"].justPressed) {
-			__next = GameplayScreen
+			__next = HelpScreen
 		}
 	}
 	
@@ -67,11 +67,20 @@ class TitleScreen {
 	static next { __next }
 }
 
-class MenuScreen {
+class HelpScreen {
 
 	static init() {}
-	static update() {}
-	static draw(alpha) {}
+	
+	static update() {
+		if (Keyboard["Space"].justPressed) {
+			__next = GameplayScreen
+		}
+	}
+	
+	static draw(alpha) {
+		Canvas.cls()
+		Canvas.print("Controls:\npress spacebar to flap your wings\npress p to pause\npress escape to exit\n(press spacebar to continue playing)", 10, 10, Color.white)
+	}
 
 	static next { __next }
 }
@@ -90,13 +99,28 @@ class GameplayScreen {
 		__pipes = []
 		__pipeTimer = 100
 		__startTime = Platform.time
+		__currentTime = 0
 		__bestTime = 0
 		__musicOn = true
 		__soundOn = true
+		__paused = false
 		loadImages()
 	}
 	
 	static update() {
+		if (Keyboard["p"].justPressed) {
+			__paused = !__paused
+			if (__paused) {
+				__pauseStartTime = Platform.time
+			} else {
+				var pauseTime = Platform.time - __pauseStartTime
+				__currentTime = __currentTime - pauseTime
+				System.print("pause time = %(pauseTime) current time = %(__currentTime) pause time = %(pauseTime) current time - pause time = %(__currentTime - pauseTime)")
+			}
+		}
+		if (__paused) {
+			return
+		}
 		__bird.update()
 		__pipes.each { |p| p.move(GameplayScreen.flightspeed) }
 		__pipeTimer = __pipeTimer - 1
@@ -105,15 +129,16 @@ class GameplayScreen {
 			__pipeTimer = GameplayScreen.pipeSpawnTime * RNG.float()
 		}
 		var now = Platform.time
-		var currentTime = now - __startTime
-		if (currentTime > __bestTime) {
-			__bestTime = currentTime
+		__currentTime = now - __startTime
+		if (__currentTime > __bestTime) {
+			__bestTime = __currentTime
 		}
 		if (collision()) {
 			__startTime = now
 		}
 		unspawnPipes()
 		__volcanoMovie.update()
+		__layers.each {|layer| layer.update() }
 	}
 
 	static draw(alpha) {
@@ -123,7 +148,7 @@ class GameplayScreen {
 		}
 		__bird.draw(alpha)
 		__pipes.each { |p| p.draw(alpha) }
-		Canvas.print("time: %(Platform.time - __startTime)", Canvas.width / 2 - 50, 10, Color.white)
+		Canvas.print("time: %(__currentTime)", Canvas.width / 2 - 50, 10, Color.white)
 		Canvas.print("best time: %(__bestTime)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
 	}
 	
@@ -174,10 +199,8 @@ class GameplayScreen {
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 07.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 08.png"),
 		].map {|i| FitImage.call(i, Canvas.width, Canvas.height) }.toList
-		var index = 0
-		for (layer in __layers) {
-			__layers[index] = ParallaxLayer.new(layer, (index + 1) * 0.2)
-			index = index + 1
+		for (i in 0...__layers.count) {
+			__layers[i] = ParallaxLayer.new(__layers[i], (i + 1) * 0.2)
 		}
 	}
 
@@ -189,7 +212,7 @@ class Bird {
 	construct new(x, y) {
 		loadImages()
 		_bounds = Rect.new(x, y, 50, 37)
-		_hurtbox = Rect.new(x + 50 / 2 - 2.5, y + 37 / 2 - 2.5, 5, 5)
+		_hurtbox = Rect.fromCenter(x + 50 / 2, y + 37 / 2, 5, 5)
 		_velocity = Vector.new(0, 0)
 		_flapButton = Keyboard["Space"]
 		_frame = _fly1
@@ -292,6 +315,13 @@ class Rect {
 	construct new(x, y, width, height) {
 		_x = x
 		_y = y
+		_width = width
+		_height = height
+	}
+	
+	construct fromCenter(x, y, width, height) {
+		_x = x - width / 2
+		_y = y - height / 2
 		_width = width
 		_height = height
 	}
@@ -415,11 +445,14 @@ class ParallaxLayer {
 		_speed = speed
 	}
 	
-	draw(alpha) {
+	update() {
 		_x = _x - _speed
 		if (_x <= -Canvas.width) {
 			_x = 0
 		}
+	}
+	
+	draw(alpha) {
 		_drawable.draw(_x, 0)
 		_drawable.draw(_x + Canvas.width, 0)
 	}
