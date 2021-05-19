@@ -20,6 +20,64 @@ var RNG = Random.new()
 
 class Main {
 
+	construct new() {}
+	
+	init() {
+		Window.title = "Flappin' Wren"
+		_state = TitleScreen
+	}
+	
+	update() {
+		_state.update()
+		if (_state.next) {
+			_state = state.next
+			_state.init()
+		}
+	}
+	
+	draw(alpha) {
+		_state.draw(alpha)
+	}
+	
+	state { _state }
+	state=(value) {
+		_state = value
+	}
+}
+
+var Game = Main.new()
+
+class TitleScreen {
+
+	static init() {
+	}
+	
+	static update() {
+		if (Keyboard["Space"].justPressed) {
+			__next = GameplayScreen
+		}
+	}
+	
+	static draw(alpha) {
+		Canvas.cls()
+		Canvas.print("Flappin' Wren!!", Canvas.width / 2 - 30, Canvas.height / 3, Color.pink)
+		Canvas.print("(press the spacebar to start flappin')", Canvas.width / 2 - 150, Canvas.height / 2, Color.blue)
+	}
+	
+	static next { __next }
+}
+
+class MenuScreen {
+
+	static init() {}
+	static update() {}
+	static draw(alpha) {}
+
+	static next { __next }
+}
+
+class GameplayScreen {
+
 	static gravity { 0.1 }
 	static flapPower { 4 }	
 	static flightspeed { 3 }
@@ -27,88 +85,86 @@ class Main {
 
 	construct new() {}
 	
-	init() {
-		Window.title = "Flappy Wren"
-		_bird = Bird.new(100, 10)
-		_pipes = []
-		_pipeTimer = 100
-		_startTime = Platform.time
-		_bestTime = 0
-		_musicOn = true
-		_soundOn = true
-		//_bgFrame = 0
+	static init() {
+		__bird = Bird.new(100, 10)
+		__pipes = []
+		__pipeTimer = 100
+		__startTime = Platform.time
+		__bestTime = 0
+		__musicOn = true
+		__soundOn = true
 		loadImages()
 	}
 	
-	update() {
-		_bird.update()
-		_pipes.each { |p| p.move(Main.flightspeed) }
-		_pipeTimer = _pipeTimer - 1
-		if (_pipeTimer <= 0) {
+	static update() {
+		__bird.update()
+		__pipes.each { |p| p.move(GameplayScreen.flightspeed) }
+		__pipeTimer = __pipeTimer - 1
+		if (__pipeTimer <= 0) {
 			spawnPipe()
-			_pipeTimer = Main.pipeSpawnTime * RNG.float()
+			__pipeTimer = GameplayScreen.pipeSpawnTime * RNG.float()
 		}
 		var now = Platform.time
-		var currentTime = now - _startTime
-		if (currentTime > _bestTime) {
-			_bestTime = currentTime
+		var currentTime = now - __startTime
+		if (currentTime > __bestTime) {
+			__bestTime = currentTime
 		}
 		if (collision()) {
-			_startTime = now
+			__startTime = now
 		}
 		unspawnPipes()
-		_volcanoMovie.update()
+		__volcanoMovie.update()
 	}
 
-	draw(alpha) {
-		_volcanoMovie.draw(0, 0)
-		for (layer in _layers) {
+	static draw(alpha) {
+		__volcanoMovie.draw(0, 0)
+		for (layer in __layers) {
 			layer.draw(alpha)
 		}
-		_bird.draw(alpha)
-		_pipes.each { |p| p.draw(alpha) }
-		Canvas.print("time: %(Platform.time - _startTime)", Canvas.width / 2 - 50, 10, Color.white)
-		Canvas.print("best time: %(_bestTime)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
+		__bird.draw(alpha)
+		__pipes.each { |p| p.draw(alpha) }
+		Canvas.print("time: %(Platform.time - __startTime)", Canvas.width / 2 - 50, 10, Color.white)
+		Canvas.print("best time: %(__bestTime)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
 	}
 	
-	spawnPipe() {
+	static spawnPipe() {
 		var height = RNG.int(50, Canvas.height * 0.65)
 		var num = RNG.float()
 		if (num < 0.33) {
-			_pipes.add(Pipe.top(Canvas.width, height))
+			__pipes.add(Pipe.top(Canvas.width, height))
 		} else if (num < 0.66) {
-			_pipes.add(Pipe.bottom(Canvas.width, height))
+			__pipes.add(Pipe.bottom(Canvas.width, height))
 		} else {
-			_pipes.add(Pipe.both(Canvas.width, height, RNG.int(40, 60)))
+			__pipes.add(Pipe.both(Canvas.width, height, RNG.int(40, 60)))
 		}
 	}
 	
-	unspawnPipes() {
-		if (_pipes.count > 0) {
-			_pipes = _pipes.where {|p| p.x > -Pipe.width }.toList
+	static unspawnPipes() {
+		if (__pipes.count > 0) {
+			__pipes = __pipes.where {|p| p.x > -Pipe.width }.toList
 		}
 	}
 	
-	collision() {
-		for (pipe in _pipes) {
-			if (pipe.topBounds && pipe.topBounds.intersects(_bird.hurtbox)) {
+	static collision() {
+		for (pipe in __pipes) {
+			if (pipe.topBounds && pipe.topBounds.intersects(__bird.hurtbox)) {
 				return true
 			}
-			if (pipe.bottomBounds && pipe.bottomBounds.intersects(_bird.hurtbox)) {
+			if (pipe.bottomBounds && pipe.bottomBounds.intersects(__bird.hurtbox)) {
 				return true
 			}
 		}
 		return false
 	}
 	
-	loadImages() {
+	static loadImages() {
 		var volcano = [
 			ImageData.loadFromFile("assets/Volcano/Volcano anim. 01.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano anim. 02.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano anim. 03.png")
 		].map {|i| FitImage.call(i, Canvas.width, Canvas.height) }.toList
-		_volcanoMovie = Movie.new(volcano, 1, "loop")
-		_layers = [
+		__volcanoMovie = Movie.new(volcano, 1, "loop")
+		__layers = [
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 01.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 02.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 03.png"),
@@ -119,14 +175,14 @@ class Main {
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 08.png"),
 		].map {|i| FitImage.call(i, Canvas.width, Canvas.height) }.toList
 		var index = 0
-		for (layer in _layers) {
-			_layers[index] = ParallaxLayer.new(layer, (index + 1) * 0.2)
+		for (layer in __layers) {
+			__layers[index] = ParallaxLayer.new(layer, (index + 1) * 0.2)
 			index = index + 1
 		}
 	}
-}
 
-var Game = Main.new()
+	static next { __next }
+}
 
 class Bird {
 
@@ -152,9 +208,9 @@ class Bird {
 				_flapFrames = 0
 			}
 		}
-		_velocity.y = _velocity.y + Main.gravity
+		_velocity.y = _velocity.y + GameplayScreen.gravity
 		if (_flapButton.justPressed) {
-			_velocity.y = _velocity.y - Main.flapPower
+			_velocity.y = _velocity.y - GameplayScreen.flapPower
 			_frame = _fly2
 		}
 		if (_bounds.y < 0) {
@@ -278,27 +334,6 @@ class Rect {
 		}
 		return true
 	}
-}
-
-class TitleScreen {
-
-	static init() {}
-	static update() {}
-	static draw(alpha) {}
-}
-
-class MenuScreen {
-
-	static init() {}
-	static update() {}
-	static draw(alpha) {}
-}
-
-class GameplayScreen {
-
-	static init() {}
-	static update() {}
-	static draw(alpha) {}
 }
 
 class Movie is Drawable {
