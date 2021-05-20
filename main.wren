@@ -95,12 +95,11 @@ class GameplayScreen {
 	construct new() {}
 	
 	static init() {
-		__bird = Bird.new(100, 10)
+		__bird = Bird.new(50, 10)
 		__pipes = []
 		__pipeTimer = 100
-		__startTime = Platform.time
-		__currentTime = 0
-		__bestTime = 0
+		__distance = 0
+		__bestDistance = 0
 		__musicOn = true
 		__soundOn = true
 		__paused = false
@@ -110,13 +109,6 @@ class GameplayScreen {
 	static update() {
 		if (Keyboard["p"].justPressed) {
 			__paused = !__paused
-			if (__paused) {
-				__pauseStartTime = Platform.time
-			} else {
-				var pauseTime = Platform.time - __pauseStartTime
-				__currentTime = __currentTime - pauseTime
-				System.print("pause time = %(pauseTime) current time = %(__currentTime) pause time = %(pauseTime) current time - pause time = %(__currentTime - pauseTime)")
-			}
 		}
 		if (__paused) {
 			return
@@ -128,13 +120,12 @@ class GameplayScreen {
 			spawnPipe()
 			__pipeTimer = GameplayScreen.pipeSpawnTime * RNG.float()
 		}
-		var now = Platform.time
-		__currentTime = now - __startTime
-		if (__currentTime > __bestTime) {
-			__bestTime = __currentTime
+		__distance = __distance + 1
+		if (__distance > __bestDistance) {
+			__bestDistance = __distance
 		}
 		if (collision()) {
-			__startTime = now
+			respawn()
 		}
 		unspawnPipes()
 		__volcanoMovie.update()
@@ -148,19 +139,28 @@ class GameplayScreen {
 		}
 		__bird.draw(alpha)
 		__pipes.each { |p| p.draw(alpha) }
-		Canvas.print("time: %(__currentTime)", Canvas.width / 2 - 50, 10, Color.white)
-		Canvas.print("best time: %(__bestTime)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
+		Canvas.print("distance: %(__distance)", Canvas.width / 2 - 50, 10, Color.white)
+		Canvas.print("best distance: %(__bestDistance)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
+		Canvas.draw(__pipe, 10, 10)
+	}
+	
+	static respawn() {
+		__bird.moveTo(50, 10)
+		__bird.velocity.y = 0
+		__pipes = []
+		__pipeTimer = 100
+		__distance = 0
 	}
 	
 	static spawnPipe() {
-		var height = RNG.int(50, Canvas.height * 0.65)
+		var height = RNG.int(50, Canvas.height * 0.60)
 		var num = RNG.float()
 		if (num < 0.33) {
 			__pipes.add(Pipe.top(Canvas.width, height))
 		} else if (num < 0.66) {
 			__pipes.add(Pipe.bottom(Canvas.width, height))
 		} else {
-			__pipes.add(Pipe.both(Canvas.width, height, RNG.int(40, 60)))
+			__pipes.add(Pipe.both(Canvas.width, height, RNG.int(20, 40)))
 		}
 	}
 	
@@ -202,6 +202,8 @@ class GameplayScreen {
 		for (i in 0...__layers.count) {
 			__layers[i] = ParallaxLayer.new(__layers[i], (i + 1) * 0.2)
 		}
+		__pipe = ImageData.loadFromFile("assets/pipes/pipe.png").transform({"scaleX": 0.5, "scaleY": 0.5})
+		__pipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png")
 	}
 
 	static next { __next }
@@ -211,8 +213,8 @@ class Bird {
 
 	construct new(x, y) {
 		loadImages()
-		_bounds = Rect.new(x, y, 50, 37)
-		_hurtbox = Rect.fromCenter(x + 50 / 2, y + 37 / 2, 5, 5)
+		_bounds = Rect.fromCenter(x, y, 50, 37)
+		_hurtbox = Rect.fromCenter(x, y, 30, 5)
 		_velocity = Vector.new(0, 0)
 		_flapButton = Keyboard["Space"]
 		_frame = _fly1
@@ -245,14 +247,14 @@ class Bird {
 			_velocity.y = 0
 		}
 		
-		//_bounds.x = _bounds.x + _velocity.x
-		//_bounds.y = _bounds.y + _velocity.y
 		move()
 	}
 	
 	draw(alpha) {
 		//Canvas.rectfill(_bounds.x, _bounds.y, _bounds.width, _bounds.height, Color.blue)
 		Canvas.draw(_frame, _bounds.x, _bounds.y)
+		Canvas.rect(_hurtbox.x, _hurtbox.y, _hurtbox.width, _hurtbox.height, Color.green)
+		Canvas.rect(_bounds.x, _bounds.y, _bounds.width, _bounds.height, Color.green)
 	}
 
 	loadImages() {
@@ -265,8 +267,13 @@ class Bird {
 	move() {
 		_bounds.x = _bounds.x + _velocity.x
 		_bounds.y = _bounds.y + _velocity.y
-		_hurtbox.x = _hurtbox.x + _velocity.x
-		_hurtbox.y = _hurtbox.y + _velocity.y
+		_hurtbox.center = _bounds.center
+	}
+	
+	moveTo(x, y) {
+		_bounds.x = x
+		_bounds.y = y
+		_hurtbox.center = _bounds.center
 	}
 }
 
@@ -349,6 +356,18 @@ class Rect {
 	bottom { _y + _height }
 	
 	area { _width * _height }
+	
+	topLeft { Vector.new(_x, _y) }
+	topLeft=(value) {
+		_x = value.x
+		_y = value.y
+	}
+	
+	center { Vector.new(_x + width / 2, _y + height / 2) }
+	center=(value) {
+		_x = value.x - width / 2
+		_y = value.y - height / 2
+	}
 	
 	toString { "[%(_x) %(_y) %(_width) %(_height)]" }
 	
