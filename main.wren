@@ -141,7 +141,6 @@ class GameplayScreen {
 		__pipes.each { |p| p.draw(alpha) }
 		Canvas.print("distance: %(__distance)", Canvas.width / 2 - 50, 10, Color.white)
 		Canvas.print("best distance: %(__bestDistance)", Canvas.width / 2 - 50, Canvas.height - 10, Color.white)
-		Canvas.draw(__pipe, 10, 10)
 	}
 	
 	static respawn() {
@@ -202,8 +201,6 @@ class GameplayScreen {
 		for (i in 0...__layers.count) {
 			__layers[i] = ParallaxLayer.new(__layers[i], (i + 1) * 0.2)
 		}
-		__pipe = ImageData.loadFromFile("assets/pipes/pipe.png").transform({"scaleX": 0.5, "scaleY": 0.5})
-		__pipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png")
 	}
 
 	static next { __next }
@@ -283,17 +280,27 @@ class Pipe {
 	
 	construct top(x, height) {
 		_topBounds = Rect.new(x, 0, Pipe.width, height)
+		loadImages()
 	}	
 
 	construct bottom(x, height) {
 		_bottomBounds = Rect.new(x, Canvas.height - height, Pipe.width, height)
+		loadImages()
 	}	
 
 	construct both(x, gapY, gapHeight) {
 		_topBounds = Rect.new(x, 0, Pipe.width, gapY)
 		_bottomBounds = Rect.new(x, Canvas.height - gapY + gapHeight, Pipe.width, Canvas.height - gapY - gapHeight)
+		loadImages()
 	}	
 
+	loadImages() {
+		_pipe = ImageData.loadFromFile("assets/pipes/pipe.png")
+		_pipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png")
+		_downPipe = ImageData.loadFromFile("assets/pipes/pipe.png").transform({"scaleY": -1})
+		_downPipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png").transform({"scaleY": -1})
+	}
+	
 	topBounds { _topBounds }
 	bottomBounds { _bottomBounds }
 	x { _topBounds ? _topBounds.x : _bottomBounds.x }
@@ -303,7 +310,14 @@ class Pipe {
 			Canvas.rectfill(_topBounds.x, _topBounds.y, _topBounds.width, _topBounds.height, Color.yellow)
 		}
 		if (_bottomBounds) {
-			Canvas.rectfill(_bottomBounds.x, _bottomBounds.y, _bottomBounds.width, _bottomBounds.height, Color.yellow)
+			var y = _bottomBounds.height
+			Canvas.draw(_pipeTop, bottomBounds.x, y)
+			y = y + 24
+			while (y < Canvas.height) {
+				Canvas.draw(_pipe, bottomBounds.x, y)
+				y = y + 12
+			}
+			Canvas.rect(_bottomBounds.x, _bottomBounds.y, _bottomBounds.width, _bottomBounds.height, Color.yellow)
 		}
 	}
 	
