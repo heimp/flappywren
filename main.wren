@@ -90,14 +90,14 @@ class GameplayScreen {
 	static gravity { 0.1 }
 	static flapPower { 4 }	
 	static flightspeed { 3 }
-	static pipeSpawnTime { 200 }
+	static pipeSpawnTime { 100 }
 
 	construct new() {}
 	
 	static init() {
 		__bird = Bird.new(50, 10)
 		__pipes = []
-		__pipeTimer = 100
+		__pipeTimer = 50
 		__distance = 0
 		__bestDistance = 0
 		__musicOn = true
@@ -107,6 +107,10 @@ class GameplayScreen {
 	}
 	
 	static update() {
+		if (__bird.dead) {
+			respawn()
+			return
+		}
 		if (Keyboard["p"].justPressed) {
 			__paused = !__paused
 		}
@@ -114,6 +118,9 @@ class GameplayScreen {
 			return
 		}
 		__bird.update()
+		if (__bird.dying) {
+			return
+		}
 		__pipes.each { |p| p.move(GameplayScreen.flightspeed) }
 		__pipeTimer = __pipeTimer - 1
 		if (__pipeTimer <= 0) {
@@ -125,7 +132,7 @@ class GameplayScreen {
 			__bestDistance = __distance
 		}
 		if (collision()) {
-			respawn()
+			__bird.die()
 		}
 		unspawnPipes()
 		__volcanoMovie.update()
@@ -144,8 +151,7 @@ class GameplayScreen {
 	}
 	
 	static respawn() {
-		__bird.moveTo(50, 10)
-		__bird.velocity.y = 0
+		__bird.reset(50, 10)
 		__pipes = []
 		__pipeTimer = 100
 		__distance = 0
@@ -154,12 +160,12 @@ class GameplayScreen {
 	static spawnPipe() {
 		var height = RNG.int(50, Canvas.height * 0.60)
 		var num = RNG.float()
-		if (num < 0.33) {
+		if (num < 0.5) {
 			__pipes.add(Pipe.top(Canvas.width, height))
-		} else if (num < 0.66) {
+		} else if (num < 1) {
 			__pipes.add(Pipe.bottom(Canvas.width, height))
 		} else {
-			__pipes.add(Pipe.both(Canvas.width, height, RNG.int(20, 40)))
+			//__pipes.add(Pipe.both(Canvas.width, height, RNG.int(20, 40)))
 		}
 	}
 	
@@ -216,11 +222,25 @@ class Bird {
 		_flapButton = Keyboard["Space"]
 		_frame = _fly1
 		_flapFrames = 0
+		_dying = false
+		_dead = false
 	}
 
 	bounds { _bounds }
 	velocity { _velocity }
 	hurtbox { _hurtbox }
+	dying { _dying }
+	dead { _dead }
+	
+	reset(x, y) {
+		moveTo(x, y)
+		_velocity.y = 0
+		_frame = _fly1
+		_flapFrames = 0
+		_dying = false
+		_dead = false
+		_deathMovie.reset()
+	}
 	
 	update() {
 		if (_frame == _fly2) {
@@ -229,6 +249,13 @@ class Bird {
 				_frame = _fly1
 				_flapFrames = 0
 			}
+		}
+		if (_dying) {
+			_deathMovie.update()
+			if (_deathMovie.done) {
+				_dead = true
+			}
+			return
 		}
 		_velocity.y = _velocity.y + GameplayScreen.gravity
 		if (_flapButton.justPressed) {
@@ -248,10 +275,9 @@ class Bird {
 	}
 	
 	draw(alpha) {
-		//Canvas.rectfill(_bounds.x, _bounds.y, _bounds.width, _bounds.height, Color.blue)
 		Canvas.draw(_frame, _bounds.x, _bounds.y)
-		Canvas.rect(_hurtbox.x, _hurtbox.y, _hurtbox.width, _hurtbox.height, Color.green)
-		Canvas.rect(_bounds.x, _bounds.y, _bounds.width, _bounds.height, Color.green)
+		//Canvas.rect(_hurtbox.x, _hurtbox.y, _hurtbox.width, _hurtbox.height, Color.green)
+		//Canvas.rect(_bounds.x, _bounds.y, _bounds.width, _bounds.height, Color.green)
 	}
 
 	loadImages() {
@@ -259,6 +285,7 @@ class Bird {
 		_fly2 = ImageData.loadFromFile("assets/bird/fly/frame-2.png")
 		_hit1 = ImageData.loadFromFile("assets/bird/got hit/frame-1.png")
 		_hit2 = ImageData.loadFromFile("assets/bird/got hit/frame-2.png")
+		_deathMovie = Movie.new([_hit1, _hit2, _hit1, _hit2], 0.01, "none")
 	}
 	
 	move() {
@@ -271,6 +298,11 @@ class Bird {
 		_bounds.x = x
 		_bounds.y = y
 		_hurtbox.center = _bounds.center
+	}
+	
+	die() {
+		_dying = true
+		_frame = _deathMovie
 	}
 }
 
@@ -297,8 +329,8 @@ class Pipe {
 	loadImages() {
 		_pipe = ImageData.loadFromFile("assets/pipes/pipe.png")
 		_pipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png")
-		_downPipe = ImageData.loadFromFile("assets/pipes/pipe.png").transform({"scaleY": -1})
-		_downPipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png").transform({"scaleY": -1})
+		_downPipeTop = ImageData.loadFromFile("assets/pipes/pipe-top.png").transform({"angle": 180})
+		_downPipe = ImageData.loadFromFile("assets/pipes/pipe.png").transform({"angle": 180})
 	}
 	
 	topBounds { _topBounds }
@@ -307,17 +339,24 @@ class Pipe {
 	
 	draw(alpha) {
 		if (_topBounds) {
-			Canvas.rectfill(_topBounds.x, _topBounds.y, _topBounds.width, _topBounds.height, Color.yellow)
+			var y = _topBounds.height
+			Canvas.draw(_downPipeTop, _topBounds.x, y - 24)
+			y = y - 24
+			while (y > -12) {
+				Canvas.draw(_downPipe, _topBounds.x, y - 12)
+				y = y - 12
+			}
+			//Canvas.rect(_topBounds.x, _topBounds.y, _topBounds.width, _topBounds.height, Color.yellow)
 		}
 		if (_bottomBounds) {
-			var y = _bottomBounds.height
-			Canvas.draw(_pipeTop, bottomBounds.x, y)
+			var y = _bottomBounds.y
+			Canvas.draw(_pipeTop, _bottomBounds.x, y)
 			y = y + 24
 			while (y < Canvas.height) {
-				Canvas.draw(_pipe, bottomBounds.x, y)
+				Canvas.draw(_pipe, _bottomBounds.x, y)
 				y = y + 12
 			}
-			Canvas.rect(_bottomBounds.x, _bottomBounds.y, _bottomBounds.width, _bottomBounds.height, Color.yellow)
+			//Canvas.rect(_bottomBounds.x, _bottomBounds.y, _bottomBounds.width, _bottomBounds.height, Color.yellow)
 		}
 	}
 	
@@ -465,6 +504,12 @@ class Movie is Drawable {
 	
 	stop() {
 		_done = true
+	}
+	
+	reset() {
+		_index = 0
+		_forward = true
+		_done = false
 	}
 }
 
