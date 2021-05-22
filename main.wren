@@ -104,6 +104,7 @@ class GameplayScreen {
 		__soundOn = true
 		__paused = false
 		loadImages()
+		__volcanoMovie.play()
 	}
 	
 	static update() {
@@ -285,7 +286,7 @@ class Bird {
 		_fly2 = ImageData.loadFromFile("assets/bird/fly/frame-2.png")
 		_hit1 = ImageData.loadFromFile("assets/bird/got hit/frame-1.png")
 		_hit2 = ImageData.loadFromFile("assets/bird/got hit/frame-2.png")
-		_deathMovie = Movie.new([_hit1, _hit2, _hit1, _hit2], 0.01, "none")
+		_deathMovie = Movie.new([_hit1, _hit2, _hit1, _hit2], 0.5, "none")
 	}
 	
 	move() {
@@ -303,6 +304,7 @@ class Bird {
 	die() {
 		_dying = true
 		_frame = _deathMovie
+		_frame.play()
 	}
 }
 
@@ -449,9 +451,21 @@ class Movie is Drawable {
 		_frameDuration = frameDuration
 		_loopMode = loopMode
 		_index = 0
-		_start = Platform.time
 		_forward = true
 		_done = false
+		_playing = false
+	}
+	
+	play() {
+		_playing = true
+		_done = false
+		_index = 0
+		_start = Platform.time
+	}
+	
+	stop() {
+		_done = true
+		_playing = false
 	}
 	
 	update() {
@@ -501,15 +515,13 @@ class Movie is Drawable {
 	isOscillating { _loopMode == "oscillate" }
 	currentFrameNumber { _index }
 	currentDrawable { _frames[_index] }
-	
-	stop() {
-		_done = true
-	}
+	playing { _playing }
 	
 	reset() {
 		_index = 0
 		_forward = true
 		_done = false
+		_playing = false
 	}
 }
 
