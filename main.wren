@@ -1,4 +1,4 @@
-import "dome" for Window, Platform
+import "dome" for Window, Platform, Process
 import "graphics" for Canvas, Color, Drawable, ImageData
 import "math" for Vector, Math
 import "input" for Keyboard, Mouse, GamePad
@@ -7,13 +7,14 @@ import "audio" for AudioEngine, AudioChannel, AudioState
 
 /*
 TODO
-- find pipe image or draw them
 - title screen
 - menu screen
+- credits screen
 - find or create music and sound effects
-- fix physics
+- fix physics?
 - fix the pipe spawning algorithm
 - hit sounds and animation
+- esc to exit
 */
 
 var RNG = Random.new()
@@ -23,7 +24,7 @@ class Main {
 	construct new() {}
 	
 	init() {
-		Window.title = "Flappin' Wren"
+		Window.title = "Unflappable"
 		_state = TitleScreen
 	}
 	
@@ -32,7 +33,9 @@ class Main {
 		if (_state.next) {
 			_state = state.next
 			_state.init()
+			_state.next = null
 		}
+		//System.print(_state)
 	}
 	
 	draw(alpha) {
@@ -53,6 +56,10 @@ class TitleScreen {
 	}
 	
 	static update() {
+		if (Keyboard["Escape"].justPressed) {
+			ExitScreen.previous = TitleScreen
+			__next = ExitScreen
+		}
 		if (Keyboard["Space"].justPressed) {
 			__next = HelpScreen
 		}
@@ -60,11 +67,14 @@ class TitleScreen {
 	
 	static draw(alpha) {
 		Canvas.cls()
-		Canvas.print("Flappin' Wren!!", Canvas.width / 2 - 30, Canvas.height / 3, Color.pink)
+		Canvas.print("unflappable", Canvas.width / 2 - 30, Canvas.height / 3, Color.pink)
 		Canvas.print("(press the spacebar to start flappin')", Canvas.width / 2 - 150, Canvas.height / 2, Color.blue)
 	}
 	
 	static next { __next }
+	static next=(value) {
+		__next = value
+	}
 }
 
 class HelpScreen {
@@ -72,6 +82,10 @@ class HelpScreen {
 	static init() {}
 	
 	static update() {
+		if (Keyboard["Escape"].justPressed) {
+			ExitScreen.previous = HelpScreen
+			__next = ExitScreen
+		}
 		if (Keyboard["Space"].justPressed) {
 			__next = GameplayScreen
 		}
@@ -79,10 +93,13 @@ class HelpScreen {
 	
 	static draw(alpha) {
 		Canvas.cls()
-		Canvas.print("Controls:\npress spacebar to flap your wings\npress p to pause\npress escape to exit\n(press spacebar to continue playing)", 10, 10, Color.white)
+		Canvas.print("Controls:\npress spacebar to flap your wings\npress p to pause\npress escape to exit\n(press spacebar to \nreally start flappin')", 10, 10, Color.white)
 	}
 
 	static next { __next }
+	static next=(value) {
+		__next = value
+	}
 }
 
 class GameplayScreen {
@@ -108,6 +125,10 @@ class GameplayScreen {
 	}
 	
 	static update() {
+		if (Keyboard["Escape"].justPressed) {
+			ExitScreen.previous = GameplayScreen
+			__next = ExitScreen
+		}
 		if (__bird.dead) {
 			respawn()
 			return
@@ -194,7 +215,7 @@ class GameplayScreen {
 			ImageData.loadFromFile("assets/Volcano/Volcano anim. 02.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano anim. 03.png")
 		].map {|i| FitImage.call(i, Canvas.width, Canvas.height) }.toList
-		__volcanoMovie = Movie.new(volcano, 1, "loop")
+		__volcanoMovie = Movie.new(volcano, 100, "loop")
 		__layers = [
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 01.png"),
 			ImageData.loadFromFile("assets/Volcano/Volcano Layer 02.png"),
@@ -211,6 +232,49 @@ class GameplayScreen {
 	}
 
 	static next { __next }
+	static next=(value) {
+		__next = value
+	}
+}
+
+class ExitScreen {
+
+	construct new() {}
+	
+	static init() {}
+	
+	static update() {
+		if (Keyboard["escape"].justPressed) {
+			Process.exit()
+		} else if (Keyboard["space"].justPressed) {
+			__previous.next = null
+			__next = __previous
+		}
+	}
+	
+	static draw(alpha) {
+		Canvas.cls()
+		Canvas.print("Thanks for playing!
+Hit escape again to quit
+Hit space to go back to flappin'
+
+Credits:
+Bird:
+Volcano:
+Pipes:
+Music:
+Sounds:", 10, 10, Color.white)
+	}
+	
+	static next { __next }
+	static next=(value) {
+		__next = value
+	}
+	
+	static previous { __previous }
+	static previous=(value) {
+		__previous = value
+	}
 }
 
 class Bird {
@@ -286,7 +350,7 @@ class Bird {
 		_fly2 = ImageData.loadFromFile("assets/bird/fly/frame-2.png")
 		_hit1 = ImageData.loadFromFile("assets/bird/got hit/frame-1.png")
 		_hit2 = ImageData.loadFromFile("assets/bird/got hit/frame-2.png")
-		_deathMovie = Movie.new([_hit1, _hit2, _hit1, _hit2], 0.5, "none")
+		_deathMovie = Movie.new([_hit1, _hit2, _hit1, _hit2], 16, "none")
 	}
 	
 	move() {
@@ -438,12 +502,14 @@ class Rect {
 		}
 		return true
 	}
+	
+	contains(point) { point.x >= left && point.x < right && point.y >= top && point.y < bottom }
 }
 
 class Movie is Drawable {
 
 	/* frames - list of drawables
-	   frameDuration - number of seconds per frame
+	   frameDuration - number of ticks per frame
 	   loopMode - "none" - the movie doesn't loop, "loop" - it loops, "oscillate" - it goes back and forth
     */
 	construct new(frames, frameDuration, loopMode) {
@@ -454,13 +520,14 @@ class Movie is Drawable {
 		_forward = true
 		_done = false
 		_playing = false
+		_ticks = 0
 	}
 	
 	play() {
 		_playing = true
 		_done = false
 		_index = 0
-		_start = Platform.time
+		_ticks = 0
 	}
 	
 	stop() {
@@ -472,11 +539,11 @@ class Movie is Drawable {
 		if (_done) {
 			return
 		}
-		var now = Platform.time
-		if (now - _start < _frameDuration) {
+		_ticks = _ticks + 1
+		if (_ticks < _frameDuration) {
 			return
 		}
-		_start = now
+		_ticks = 0
 		if (_forward) {
 			if (_index < _frames.count - 1) {
 				_index = _index + 1
@@ -522,6 +589,7 @@ class Movie is Drawable {
 		_forward = true
 		_done = false
 		_playing = false
+		_ticks = 0
 	}
 }
 
@@ -552,3 +620,4 @@ class ParallaxLayer {
 		_x = value
 	}
 }
+
