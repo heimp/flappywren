@@ -1,4 +1,10 @@
 Reading from filesystem: /home/chris/projects/dome/flappywren/main.wren
+320 X 240
+Reading from filesystem: /home/chris/projects/dome/flappywren/assets/title.png
+instance of ImageData
+[05 Alpha Hydrae - Friends and Apples.ogg, 01 Alpha Hydrae - Avance.ogg]
+Reading from filesystem: /home/chris/projects/dome/flappywren/assets/music/05 Alpha Hydrae - Friends and Apples.ogg
+Audio loaded: assets/music/05 Alpha Hydrae - Friends and Apples.ogg
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/bird/fly/frame-1.png
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/bird/fly/frame-2.png
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/bird/got hit/frame-1.png
@@ -14,5 +20,9 @@ Reading from filesystem: /home/chris/projects/dome/flappywren/assets/Volcano/Vol
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/Volcano/Volcano Layer 06.png
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/Volcano/Volcano Layer 07.png
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/Volcano/Volcano Layer 08.png
+Reading from filesystem: /home/chris/projects/dome/flappywren/assets/sounds/jump-7.wav
+Audio loaded: assets/sounds/jump-7.wav
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/pipes/pipe.png
 Reading from filesystem: /home/chris/projects/dome/flappywren/assets/pipes/pipe-top.png
+Reading from filesystem: /home/chris/projects/dome/flappywren/assets/sounds/lose-1.wav
+Audio loaded: assets/sounds/lose-1.wav

@@ -4,6 +4,7 @@ import "math" for Vector, Math
 import "input" for Keyboard, Mouse, GamePad
 import "random" for Random
 import "audio" for AudioEngine, AudioChannel, AudioState
+import "io" for FileSystem
 
 /*
 TODO
@@ -24,8 +25,15 @@ class Main {
 	construct new() {}
 	
 	init() {
+		System.print("%(Canvas.width) X %(Canvas.height)")
 		Window.title = "Unflappable"
 		_state = TitleScreen
+		_state.init()
+		_soundOn = true
+		_musicOn = true
+		_musicPos = 0
+		loadSounds()
+		_currentSong = AudioEngine.play("song%(_songIndex)")
 	}
 	
 	update() {
@@ -35,7 +43,24 @@ class Main {
 			_state.init()
 			_state.next = null
 		}
-		//System.print(_state)
+		if (_musicOn && _currentSong.finished) {
+			_songIndex = (_songIndex + 1) % _songCount
+			_currentSong = AudioEngine.play("song%(_songIndex)")
+		}
+		if (Keyboard["S"].justPressed) {
+			_soundOn = !_soundOn
+		}
+		if (Keyboard["m"].justPressed) {
+			if (_musicOn) {
+				_musicOn = false
+				_musicPos = _currentSong.position
+				_currentSong.stop()
+			} else {
+				_musicOn = true
+				playSong()
+				_currentSong.position = _musicPos
+			}
+		}
 	}
 	
 	draw(alpha) {
@@ -46,6 +71,33 @@ class Main {
 	state=(value) {
 		_state = value
 	}
+
+	loadSounds() {
+		AudioEngine.register("flap", "assets/sounds/jump-7.wav")
+		AudioEngine.register("lose", "assets/sounds/lose-1.wav")
+		AudioEngine.register("win", "assets/sounds/win-6.wav")
+		var files = FileSystem.listFiles("assets/music")
+		System.print(files)
+		_songCount = files.count
+		for (i in 0...files.count) {
+			AudioEngine.register("song%(i)", "assets/music/%(files[i])")
+		}
+		_songIndex = 0
+	}
+	
+	musicOn { _musicOn }
+	musicOn=(value) {
+		_musicOn = value
+	}
+	
+	soundOn { _soundOn }
+	soundOn=(value) {
+		_soundOn = value
+	}
+	
+	playSong() {
+		_currentSong = AudioEngine.play("song%(_songIndex)")
+	}
 }
 
 var Game = Main.new()
@@ -53,6 +105,8 @@ var Game = Main.new()
 class TitleScreen {
 
 	static init() {
+		__image = ImageData.loadFromFile("assets/title.png")
+		System.print(__image)
 	}
 	
 	static update() {
@@ -66,9 +120,10 @@ class TitleScreen {
 	}
 	
 	static draw(alpha) {
-		Canvas.cls()
-		Canvas.print("unflappable", Canvas.width / 2 - 30, Canvas.height / 3, Color.pink)
-		Canvas.print("(press the spacebar to start flappin')", Canvas.width / 2 - 150, Canvas.height / 2, Color.blue)
+		//Canvas.cls()
+		//Canvas.print("unflappable", Canvas.width / 2 - 30, Canvas.height / 3, Color.pink)
+		//Canvas.print("(press the spacebar to start flappin')", Canvas.width / 2 - 150, Canvas.height / 2, Color.blue)
+		Canvas.draw(__image, 0, 0)
 	}
 	
 	static next { __next }
@@ -117,8 +172,6 @@ class GameplayScreen {
 		__pipeTimer = 50
 		__distance = 0
 		__bestDistance = 0
-		__musicOn = true
-		__soundOn = true
 		__paused = false
 		loadImages()
 		__volcanoMovie.play()
@@ -155,6 +208,9 @@ class GameplayScreen {
 		}
 		if (collision()) {
 			__bird.die()
+			if (Game.soundOn) {
+				AudioEngine.play("lose")
+			}
 		}
 		unspawnPipes()
 		__volcanoMovie.update()
@@ -180,7 +236,7 @@ class GameplayScreen {
 	}
 	
 	static spawnPipe() {
-		var height = RNG.int(50, Canvas.height * 0.60)
+		var height = RNG.int(50, Canvas.height * 0.50)
 		var num = RNG.float()
 		if (num < 0.5) {
 			__pipes.add(Pipe.top(Canvas.width, height))
@@ -230,7 +286,7 @@ class GameplayScreen {
 			__layers[i] = ParallaxLayer.new(__layers[i], (i + 1) * 0.2)
 		}
 	}
-
+	
 	static next { __next }
 	static next=(value) {
 		__next = value
@@ -247,7 +303,7 @@ class ExitScreen {
 		if (Keyboard["escape"].justPressed) {
 			Process.exit()
 		} else if (Keyboard["space"].justPressed) {
-			__previous.next = null
+			//__previous.next = null
 			__next = __previous
 		}
 	}
@@ -255,15 +311,17 @@ class ExitScreen {
 	static draw(alpha) {
 		Canvas.cls()
 		Canvas.print("Thanks for playing!
-Hit escape again to quit
-Hit space to go back to flappin'
+		
+<-- Hit escape again to quit
+--> Hit space to get back to flappin'
 
 Credits:
-Bird:
-Volcano:
-Pipes:
-Music:
-Sounds:", 10, 10, Color.white)
+Bird: https://bevouliin.com/
+Volcano: Eder Muniz
+Pipes: The PlatForge Project
+	Hannah Cohan & Stafford McIntyre
+Music: Alpha Hydrae
+Sounds: Beep Yeah!", 10, 10, Color.white)
 	}
 	
 	static next { __next }
@@ -326,6 +384,9 @@ class Bird {
 		if (_flapButton.justPressed) {
 			_velocity.y = _velocity.y - GameplayScreen.flapPower
 			_frame = _fly2
+			if (Game.soundOn) {
+				AudioEngine.play("flap")
+			}
 		}
 		if (_bounds.y < 0) {
 			_bounds.y = 0
