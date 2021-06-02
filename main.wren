@@ -52,13 +52,9 @@ class Main {
 		}
 		if (Keyboard["m"].justPressed) {
 			if (_musicOn) {
-				_musicOn = false
-				_musicPos = _currentSong.position
-				_currentSong.stop()
+				pauseMusic()
 			} else {
-				_musicOn = true
-				playSong()
-				_currentSong.position = _musicPos
+				unpauseMusic()
 			}
 		}
 	}
@@ -95,8 +91,16 @@ class Main {
 		_soundOn = value
 	}
 	
-	playSong() {
+	pauseMusic() {
+		_musicOn = false
+		_musicPos = _currentSong.position
+		_currentSong.stop()
+	}
+	
+	unpauseMusic() {
+		_musicOn = true
 		_currentSong = AudioEngine.play("song%(_songIndex)")
+		_currentSong.position = _musicPos
 	}
 }
 
@@ -148,7 +152,18 @@ class HelpScreen {
 	
 	static draw(alpha) {
 		Canvas.cls()
-		Canvas.print("Controls:\npress spacebar to flap your wings\npress p to pause\npress escape to exit\n(press spacebar to \nreally start flappin')", 10, 10, Color.white)
+		Canvas.print("Controls:
+
+Press spacebar to flap your wings.
+Try to avoid the pipes.
+Go as long as possible.
+
+Press p to pause
+Press escape to quit
+Press s to turn the sound fx off/on
+Press m to turn the music off/on
+
+(press spacebar to play)", 10, 10, Color.white)
 	}
 
 	static next { __next }
@@ -188,6 +203,11 @@ class GameplayScreen {
 		}
 		if (Keyboard["p"].justPressed) {
 			__paused = !__paused
+			if (__paused) {
+				Game.pauseMusic()
+			} else {
+				Game.unpauseMusic()
+			}
 		}
 		if (__paused) {
 			return
@@ -291,6 +311,8 @@ class GameplayScreen {
 	static next=(value) {
 		__next = value
 	}
+	
+	static paused { __paused }
 }
 
 class ExitScreen {
@@ -321,7 +343,10 @@ Volcano: Eder Muniz
 Pipes: The PlatForge Project
 	Hannah Cohan & Stafford McIntyre
 Music: Alpha Hydrae
-Sounds: Beep Yeah!", 10, 10, Color.white)
+Sounds: Beep Yeah!
+
+Made with DOME
+https://domeengine.com/", 10, 10, Color.white)
 	}
 	
 	static next { __next }
@@ -340,7 +365,7 @@ class Bird {
 	construct new(x, y) {
 		loadImages()
 		_bounds = Rect.fromCenter(x, y, 50, 37)
-		_hurtbox = Rect.fromCenter(x, y, 30, 5)
+		_hurtbox = Rect.fromCenter(x, y, 20, 5)
 		_velocity = Vector.new(0, 0)
 		_flapButton = Keyboard["Space"]
 		_frame = _fly1
